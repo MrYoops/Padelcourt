@@ -1,0 +1,12 @@
+{
+  "name": "padelsense-court",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start.js",
+    "start:bot": "python -m bot.main",
+    "start:mini": "cd mini-app && python -m http.server 3000"
+  },
+  "dependencies": {
+    "localtunnel": "^2.0.2"
+  }
+}

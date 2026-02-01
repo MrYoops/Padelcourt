@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0c0c0c" />
+  <title>PadelSense</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <div class="header-inner">
+        <h1 class="logo">PadelSense</h1>
+        <nav class="nav-tabs" role="tablist">
+          <button type="button" class="tab active" data-view="home" role="tab">Главная</button>
+          <button type="button" class="tab" data-view="qr" role="tab">QR</button>
+          <button type="button" class="tab" data-view="matches" role="tab">Матчи</button>
+          <button type="button" class="tab" data-view="highlights" role="tab">Хайлайты</button>
+          <button type="button" class="tab" data-view="analytics" role="tab">Аналитика</button>
+          <button type="button" class="tab" data-view="subscription" role="tab">Подписка</button>
+          <button type="button" class="tab" data-view="help" role="tab">Помощь</button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Индикатор загрузки -->
+    <div id="loading-indicator" class="loading-indicator" style="display: none;">
+      <div class="loading-spinner"></div>
+      <p>Проверка авторизации...</p>
+    </div>
+
+    <main class="main">
+      <!-- Register (обязательная регистрация) -->
+      <section id="view-register" class="view active" role="tabpanel">
+        <div class="view-head">
+          <h2>Регистрация в PadelSense</h2>
+          <p>Заполните данные для доступа к системе</p>
+        </div>
+        
+        <form id="register-form" class="register-form">
+          <div class="form-group">
+            <label for="first-name">Имя *</label>
+            <input type="text" id="first-name" name="first_name" required 
+                   placeholder="Введите имя" maxlength="50">
+          </div>
+          
+          <div class="form-group">
+            <label for="last-name">Фамилия *</label>
+            <input type="text" id="last-name" name="last_name" required 
+                   placeholder="Введите фамилию" maxlength="50">
+          </div>
+          
+          <div class="form-group">
+            <label for="phone">Телефон *</label>
+            <input type="tel" id="phone" name="phone" required 
+                   placeholder="+7 (999) 123-45-67" pattern="\+7 \([0-9]{3}\) [0-9]{3}-[0-9]{2}-[0-9]{2}">
+            <small>Формат: +7 (XXX) XXX-XX-XX</small>
+          </div>
+          
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" 
+                   placeholder="email@example.com" maxlength="100">
+          </div>
+          
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="personal-data" name="personal_data" required>
+              <span class="checkmark"></span>
+              <span>Я согласен на <a href="#" onclick="showPersonalDataPolicy(); return false;">обработку персональных данных</a> *</span>
+            </label>
+          </div>
+          
+          <div class="form-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="marketing" name="marketing">
+              <span class="checkmark"></span>
+              <span>Я согласен на получение рассылки о матчах и акциях</span>
+            </label>
+          </div>
+          
+          <button type="submit" class="btn btn-primary btn-block" id="btn-register-submit">
+            Зарегистрироваться
+          </button>
+          
+          <div class="form-help">
+            <small>* Поля обязательные для заполнения</small>
+          </div>
+        </form>
+      </section>
+
+      <!-- Home -->
+      <section id="view-home" class="view" role="tabpanel">
+        <div class="hero">
+          <p class="hero-tagline">Умный корт</p>
+          <h2 class="hero-title">Всё о ваших матчах в одном месте</h2>
+          <p class="hero-desc">QR-вход, счёт в реальном времени, хайлайты и аналитика.</p>
+        </div>
+        <div class="cards">
+          <a href="#" class="card" data-nav="qr">
+            <span class="card-icon">🎫</span>
+            <span class="card-label">Мой QR-код</span>
+            <span class="card-hint">Вход на корт</span>
+          </a>
+          <a href="#" class="card" data-nav="matches">
+            <span class="card-icon">📊</span>
+            <span class="card-label">Мои матчи</span>
+            <span class="card-hint">История и результаты</span>
+          </a>
+          <a href="#" class="card" data-nav="highlights">
+            <span class="card-icon">🎬</span>
+            <span class="card-label">Хайлайты</span>
+            <span class="card-hint">Лучшие моменты</span>
+          </a>
+          <a href="#" class="card card-pro" data-nav="analytics">
+            <span class="card-icon">📈</span>
+            <span class="card-label">Аналитика</span>
+            <span class="card-hint">PRO</span>
+          </a>
+        </div>
+      </section>
+
+      <!-- QR -->
+      <section id="view-qr" class="view" role="tabpanel">
+        <div class="view-head">
+          <h2>Мой QR-код</h2>
+          <p>Покажите на планшете у корта для входа</p>
+        </div>
+        <div class="qr-wrap">
+          <div id="qr-canvas" class="qr-canvas"></div>
+          <p class="qr-hint" id="qr-hint">Загрузка…</p>
+        </div>
+        <p class="view-note">После регистрации здесь появится ваш персональный QR.</p>
+      </section>
+
+      <!-- Matches -->
+      <section id="view-matches" class="view" role="tabpanel">
+        <div class="view-head">
+          <h2>Мои матчи</h2>
+          <p>История и предстоящие игры</p>
+        </div>
+        <div id="matches-list" class="list">
+          <div class="list-empty" id="matches-empty">
+            <span class="list-empty-icon">📊</span>
+            <p>Пока нет матчей</p>
+            <p class="list-empty-sub">Результаты появятся после игр на корте</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Highlights -->
+      <section id="view-highlights" class="view" role="tabpanel">
+        <div class="view-head">
+          <h2>Хайлайты</h2>
+          <p>Лучшие моменты матчей — бесплатно</p>
+        </div>
+        <div id="highlights-list" class="list grid">
+          <div class="list-empty" id="highlights-empty">
+            <span class="list-empty-icon">🎬</span>
+            <p>Пока нет хайлайтов</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Analytics (PRO) -->
+      <section id="view-analytics" class="view" role="tabpanel">
+        <div class="view-head">
+          <h2>Аналитика</h2>
+          <p>Статистика, прогресс, сильные стороны</p>
+        </div>
+        <div class="pro-gate" id="analytics-gate">
+          <div class="pro-gate-badge">PRO</div>
+          <p>Полная аналитика матчей, статистика ударов и прогресс по месяцам.</p>
+          <a href="#" class="btn btn-primary" data-nav="subscription">Оформить PRO</a>
+        </div>
+        <div id="analytics-content" class="analytics-content hidden">
+          <div class="stat-cards">
+            <div class="stat-card"><span class="stat-value" id="stat-matches">0</span><span class="stat-label">Матчей</span></div>
+            <div class="stat-card"><span class="stat-value" id="stat-wins">0</span><span class="stat-label">Побед</span></div>
+            <div class="stat-card"><span class="stat-value" id="stat-hours">0</span><span class="stat-label">Часов на корте</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Subscription -->
+      <section id="view-subscription" class="view" role="tabpanel">
+        <div class="view-head">
+          <h2>Подписка</h2>
+          <p>FREE и PRO</p>
+        </div>
+        <div class="plans">
+          <div class="plan plan-free">
+            <h3>FREE</h3>
+            <p class="plan-price">Бесплатно</p>
+            <ul>
+              <li>QR вход на корт</li>
+              <li>Live счёт</li>
+              <li>Результат после матча</li>
+              <li>Хайлайты</li>
+              <li>История 10 матчей</li>
+            </ul>
+          </div>
+          <div class="plan plan-pro">
+            <h3>PRO</h3>
+            <p class="plan-price">$9.99 / мес</p>
+            <ul>
+              <li>Всё из FREE</li>
+              <li>Полное видео матча</li>
+              <li>Аналитика и статистика</li>
+              <li>Прогресс по месяцам</li>
+              <li>История без ограничений</li>
+            </ul>
+            <button type="button" class="btn btn-primary btn-block" id="btn-upgrade">Оформить PRO</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Help -->
+      <section id="view-help" class="view" role="tabpanel">
+        <div class="view-head">
+          <h2>Помощь</h2>
+        </div>
+        <div class="help-content">
+          <div class="help-block">
+            <h4>Как войти на корт</h4>
+            <p>Откройте «Мой QR-код» и покажите экран планшету у корта. После сканирования вы попадёте в матч.</p>
+          </div>
+          <div class="help-block">
+            <h4>Хайлайты</h4>
+            <p>Лучшие моменты матчей доступны всем бесплатно в разделе «Хайлайты».</p>
+          </div>
+          <div class="help-block">
+            <h4>PRO</h4>
+            <p>Подписка PRO даёт полное видео матча и расширенную аналитику. Оформление в разделе «Подписка».</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>PadelSense — умный корт</p>
+    </footer>
+  </div>
+  <!-- Модальное окно политики -->
+  <div id="policy-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Политика обработки персональных данных</h3>
+        <button class="modal-close" onclick="closePolicyModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <h4>1. Сбор данных</h4>
+        <p>Мы собираем: ФИО, телефон, email, фото из Telegram, ID Telegram.</p>
+        
+        <h4>2. Цели сбора</h4>
+        <p>• Идентификация на корте через QR-код<br>
+           • Уведомления о матчах<br>
+           • Статистика и аналитика<br>
+           • Обратная связь</p>
+        
+        <h4>3. Хранение данных</h4>
+        <p>Данные хранятся на серверах в РФ и защищены в соответствии с ФЗ-152.</p>
+        
+        <h4>4. Права пользователя</h4>
+        <p>Вы имеете право на: доступ, исправление, удаление своих данных.</p>
+        
+        <h4>5. Передача данных</h4>
+        <p>Мы не передаем данные третьим лицам без вашего согласия.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closePolicyModal()">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

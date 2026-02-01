@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test PadelSense Registration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: #fff; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #333; border-radius: 8px; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        button { padding: 10px 20px; margin: 5px; background: #10b981; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #059669; }
+        iframe { width: 100%; height: 600px; border: 1px solid #333; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Тест PadelSense Registration</h1>
+    
+    <div class="test-section">
+        <h2>📋 Проверка серверов</h2>
+        <div id="server-status">Проверка...</div>
+        <button onclick="checkServers()">Проверить серверы</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 Mini App в iframe</h2>
+        <p>Откройте http://localhost:3000 в отдельной вкладке для полного тестирования</p>
+        <iframe src="http://localhost:3000" id="miniapp-frame"></iframe>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Ручное тестирование</h2>
+        <div id="manual-test">
+            <p><strong>Шаг 1:</strong> Откройте <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>
+            <p><strong>Шаг 2:</strong> Должна появиться форма регистрации (не главный экран!)</p>
+            <p><strong>Шаг 3:</strong> Заполните форму:</p>
+            <ul>
+                <li>Имя: Тест</li>
+                <li>Фамилия: Пользователь</li>
+                <li>Телефон: начните вводить 9991234567</li>
+                <li>Email: test@example.com</li>
+                <li>✅ Галочка "обработку персональных данных"</li>
+            </ul>
+            <p><strong>Шаг 4:</strong> Нажмите "Зарегистрироваться"</p>
+            <p><strong>Ожидаемый результат:</strong> Кнопка меняется на "Регистрация..." → алерт "Откройте через Telegram"</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Консольные логи</h2>
+        <p>Откройте F12 в браузере и смотрите вкладку Console для логов отладки</p>
+        <div id="console-logs">Логи появятся здесь...</div>
+    </div>
+
+    <script>
+        // Проверка серверов
+        async function checkServers() {
+            const statusDiv = document.getElementById('server-status');
+            statusDiv.innerHTML = '<div class="info">Проверка...</div>';
+            
+            try {
+                // Проверка backend
+                const backendResponse = await fetch('http://localhost:8000/health');
+                const backendStatus = backendResponse.ok ? 
+                    '<div class="success">✅ Backend API: http://localhost:8000 - работает</div>' : 
+                    '<div class="error">❌ Backend API: не работает</div>';
+                
+                // Проверка mini app
+                const miniAppResponse = await fetch('http://localhost:3000');
+                const miniAppStatus = miniAppResponse.ok ? 
+                    '<div class="success">✅ Mini App: http://localhost:3000 - работает</div>' : 
+                    '<div class="error">❌ Mini App: не работает</div>';
+                
+                statusDiv.innerHTML = backendStatus + miniAppStatus;
+                
+            } catch (error) {
+                statusDiv.innerHTML = '<div class="error">❌ Ошибка проверки: ' + error.message + '</div>';
+            }
+        }
+
+        // Автоматическая проверка при загрузке
+        window.onload = function() {
+            checkServers();
+            
+            // Показываем инструкции
+            setTimeout(() => {
+                document.getElementById('console-logs').innerHTML = 
+                    '<div class="info">ℹ️ Откройте F12 → Console в http://localhost:3000 чтобы увидеть логи showView и checkUserExists</div>';
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
