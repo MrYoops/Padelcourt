@@ -1,8 +1,7 @@
-// Этот файл перезаписывается при npm start
-// Для локальной разработки без туннеля:
-// URL туннеля Backend API (чтобы Mini App из Telegram могла слать запросы)
-window.API_BASE = 'https://fifth-monster-systems-geography.trycloudflare.com';
+// Начальная конфигурация — будет перезаписана при npm start
+window.API_BASE = 'http://localhost:8000';
 window.DEBUG = true;
+
 function debug(msg) {
-  if (window.DEBUG) console.log('[PadelSense]', new Date().toISOString(), msg);
+  if (window.DEBUG) console.log('[PadelSense]', msg);
 }

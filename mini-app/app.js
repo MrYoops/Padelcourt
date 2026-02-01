@@ -8,7 +8,11 @@ function debug(msg) {
 }
 
 (function () {
-  const API_BASE = window.API_BASE || 'http://localhost:8000';
+  const API_BASE = window.API_BASE;
+
+  if (!API_BASE) {
+    console.error('[PadelSense] API_BASE не задан!');
+  }
 
   // Telegram Web App
   const tg = window.Telegram && window.Telegram.WebApp;

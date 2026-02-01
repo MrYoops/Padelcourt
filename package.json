@@ -2,7 +2,8 @@
   "name": "padelsense-court",
   "private": true,
   "scripts": {
-    "start": "node scripts/start.js",
+    "start": "node scripts/start-with-tunnel.js",
+    "dev": "node scripts/start-dev.js",
     "start:windows": "node scripts/start-windows.js",
     "start:bot": "python -m bot.main",
     "start:mini": "cd mini-app && python -m http.server 3000"
