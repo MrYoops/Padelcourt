@@ -14,6 +14,7 @@ load_dotenv(env_path)
 def get_token() -> str:
     """Токен Telegram бота."""
     token = os.getenv("BOT_TOKEN")
+    print(f"🔑 BOT_TOKEN из .env: {token[:20]}..." if token else "❌ BOT_TOKEN не найден")
     if not token:
         raise ValueError("BOT_TOKEN не задан в .env")
     return token
@@ -22,6 +23,7 @@ def get_token() -> str:
 def get_mini_app_url() -> str:
     """URL Mini App (Web App) — откроется по кнопке в боте."""
     url = os.getenv("MINI_APP_URL", "https://padelsense.example.com")
+    print(f"🌐 MINI_APP_URL из .env: {url}")
     if "loca.lt" in url:
         import warnings
         warnings.warn(

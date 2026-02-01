@@ -2,6 +2,11 @@
  * PadelSense Mini App — навигация и интеграция с Telegram Web App
  */
 
+// Debug функция (если не задана в index.html)
+function debug(msg) {
+  console.log('[PadelSense]', new Date().toISOString(), msg);
+}
+
 (function () {
   const API_BASE = window.API_BASE || 'http://localhost:8000';
 
@@ -135,21 +140,26 @@
 
   // Улучшенная регистрация
   async function registerUser() {
-    debug('Начало регистрации');
+    console.log('🚀 Начало регистрации');
     var form = document.getElementById('register-form');
     var submitBtn = document.getElementById('btn-register-submit');
     
     if (!form) {
-      debug('Форма не найдена!');
+      console.error('❌ Форма не найдена!');
+      alert('❌ Форма регистрации не найдена!');
       return;
     }
     
+    console.log('✅ Форма найдена');
+    
     // Валидация формы
     if (!form.checkValidity()) {
-      debug('Форма не прошла валидацию');
+      console.log('❌ Форма не прошла валидацию');
       form.reportValidity();
       return;
     }
+    
+    console.log('✅ Форма прошла валидацию');
     
     var formData = new FormData(form);
     var tgUser = null;
@@ -158,23 +168,24 @@
     try {
       if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
         tgUser = tg.initDataUnsafe.user;
+        console.log('✅ Найден Telegram пользователь:', tgUser);
       }
     } catch (e) {
-      console.log('Telegram WebApp error:', e);
+      console.log('⚠️ Telegram WebApp error:', e);
     }
     
     // ТЕСТОВЫЙ РЕЖИМ - если нет Telegram, создаём тестового пользователя
     if (!tgUser) {
-      debug('Тестовый режим - создаем пользователя');
+      console.log('🧪 Тестовый режим - создаем пользователя');
       tgUser = {
         id: 123456789,
-        first_name: formData.get('first_name'),
-        last_name: formData.get('last_name'),
+        first_name: formData.get('first_name') || 'Test',
+        last_name: formData.get('last_name') || 'User',
         photo_url: null
       };
     }
     
-    debug('Данные формы валидны');
+    console.log('✅ Данные формы валидны');
     
     // Показать загрузку
     var originalText = submitBtn.textContent;
@@ -184,15 +195,12 @@
     try {
       var userData = {
         telegram_id: tgUser.id,
-        first_name: formData.get('first_name'),
-        last_name: formData.get('last_name'),
-        phone: formData.get('phone'),
-        email: formData.get('email') || null,
-        photo_url: tgUser.photo_url || null,
-        marketing_consent: formData.get('marketing') === 'on'
+        name: (formData.get('first_name') + ' ' + (formData.get('last_name') || '')).trim(),
+        phone: formData.get('phone') || null,
+        photo_url: tgUser.photo_url || null
       };
       
-      debug('Отправка данных: ' + JSON.stringify(userData));
+      console.log('📤 Отправка данных:', userData);
       
       var res = await fetch(API_BASE + '/api/users', {
         method: 'POST',
@@ -200,22 +208,22 @@
         body: JSON.stringify(userData)
       });
       
-      debug('Статус ответа: ' + res.status);
+      console.log('📥 Статус ответа:', res.status);
       
       if (res.ok) {
         var result = await res.json();
+        console.log('✅ Регистрация успешна:', result);
         localStorage.setItem('padelsense_user', JSON.stringify(result));
         
         // Установить состояние авторизации
         window.PadelSense.isAuthenticated = true;
         window.PadelSense.currentUser = result;
         
-        debug('Регистрация успешна');
-        alert('Регистрация успешна! Добро пожаловать в PadelSense!');
+        alert('✅ Регистрация успешна! Добро пожаловать в PadelSense!');
         showView('qr');
       } else {
         var err = await res.json();
-        debug('Ошибка регистрации: ' + JSON.stringify(err));
+        console.error('❌ Ошибка регистрации:', err);
         if (res.status === 409) {
           // Пользователь уже существует - установить состояние и показать QR
           var existingUser = err.user || {
@@ -228,15 +236,15 @@
           localStorage.setItem('padelsense_user', JSON.stringify(existingUser));
           window.PadelSense.isAuthenticated = true;
           window.PadelSense.currentUser = existingUser;
-          alert('Вы уже зарегистрированы!');
+          alert('✅ Вы уже зарегистрированы!');
           showView('qr');
         } else {
-          alert('Ошибка: ' + (err.detail || 'Попробуйте позже'));
+          alert('❌ Ошибка: ' + (err.detail || 'Попробуйте позже'));
         }
       }
     } catch (e) {
-      debug('Ошибка сети: ' + e.message);
-      alert('Нет связи с сервером. Проверьте интернет-соединение.');
+      console.error('❌ Ошибка сети:', e);
+      alert('❌ Нет связи с сервером. Проверьте интернет-соединение.');
     } finally {
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;

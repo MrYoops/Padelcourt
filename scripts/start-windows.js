@@ -1,3 +1,8 @@
+/**
+ * Запуск PadelSense в отдельных консолях (Windows).
+ * Backend, Mini App и Бот — в своих окнах; туннели — в этом окне.
+ */
+
 const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
@@ -10,7 +15,8 @@ const CONFIG_FILE = path.join(MINI_APP_DIR, 'config.js');
 const BACKEND_PORT = 8000;
 const MINIAPP_PORT = 3000;
 
-// Цвета для консоли
+const isWindows = process.platform === 'win32';
+
 const colors = {
   reset: '\x1b[0m',
   green: '\x1b[32m',
@@ -24,7 +30,6 @@ function log(prefix, color, message) {
   console.log(`${color}[${prefix}]${colors.reset} ${message}`);
 }
 
-// Проверить доступность порта
 function waitForPort(port, timeout = 30000) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
@@ -34,7 +39,7 @@ function waitForPort(port, timeout = 30000) {
       });
       req.on('error', () => {
         if (Date.now() - start > timeout) {
-          reject(new Error(`Port ${port} not available after ${timeout}ms`));
+          reject(new Error(`Порт ${port} не открылся за ${timeout}ms`));
         } else {
           setTimeout(check, 500);
         }
@@ -45,15 +50,11 @@ function waitForPort(port, timeout = 30000) {
   });
 }
 
-// Запустить cloudflared туннель и получить URL
 function startTunnel(port, name) {
   return new Promise((resolve, reject) => {
-    const cloudflared = process.platform === 'win32'
-      ? path.join(ROOT, 'cloudflared.exe')
-      : 'cloudflared';
+    const cloudflared = isWindows ? path.join(ROOT, 'cloudflared.exe') : 'cloudflared';
 
-    // Проверить наличие cloudflared
-    if (process.platform === 'win32' && !fs.existsSync(cloudflared)) {
+    if (isWindows && !fs.existsSync(cloudflared)) {
       reject(new Error('cloudflared.exe не найден в корне проекта. Скачай с https://github.com/cloudflare/cloudflared/releases'));
       return;
     }
@@ -78,12 +79,8 @@ function startTunnel(port, name) {
 
     tunnel.stdout.on('data', onData);
     tunnel.stderr.on('data', onData);
+    tunnel.on('error', (err) => reject(new Error(`Ошибка туннеля ${name}: ${err.message}`)));
 
-    tunnel.on('error', (err) => {
-      reject(new Error(`Ошибка запуска туннеля ${name}: ${err.message}`));
-    });
-
-    // Таймаут
     setTimeout(() => {
       if (!url) {
         tunnel.kill();
@@ -93,7 +90,6 @@ function startTunnel(port, name) {
   });
 }
 
-// Записать конфиг для Mini App
 function writeConfig(apiUrl) {
   const config = `// Автогенерируемый файл — не редактировать!
 // Создан: ${new Date().toISOString()}
@@ -107,14 +103,10 @@ function debug(msg) {
   log('CONFIG', colors.cyan, `Записан ${CONFIG_FILE}`);
 }
 
-// Обновить index.html чтобы подключал config.js
 function updateIndexHtml() {
   const indexPath = path.join(MINI_APP_DIR, 'index.html');
   let html = fs.readFileSync(indexPath, 'utf-8');
-
-  // Проверить есть ли уже подключение config.js
   if (!html.includes('config.js')) {
-    // Добавить перед app.js
     html = html.replace(
       '<script src="app.js"></script>',
       '<script src="config.js"></script>\n  <script src="app.js"></script>'
@@ -124,12 +116,9 @@ function updateIndexHtml() {
   }
 }
 
-// Убрать старый встроенный конфиг из index.html
 function cleanOldConfig() {
   const indexPath = path.join(MINI_APP_DIR, 'index.html');
   let html = fs.readFileSync(indexPath, 'utf-8');
-
-  // Удалить старый inline скрипт с API_BASE
   const oldConfigRegex = /<script>\s*\/\/\s*===\s*КОНФИГУРАЦИЯ[\s\S]*?<\/script>\s*(?=<script src=")/;
   if (oldConfigRegex.test(html)) {
     html = html.replace(oldConfigRegex, '');
@@ -138,81 +127,74 @@ function cleanOldConfig() {
   }
 }
 
-// Главная функция
+// Запустить команду в новом окне (Windows). Заголовок только ASCII — иначе cmd ломается.
+function runInNewWindow(title, command) {
+  const rootEsc = ROOT.replace(/"/g, '\\"');
+  const fullCmd = `cd /d "${rootEsc}" && ${command}`;
+  const inner = fullCmd.replace(/"/g, '\\"');
+  try {
+    execSync(`start "${title}" cmd /k "${inner}"`, { cwd: ROOT, stdio: 'inherit', shell: true });
+  } catch (err) {
+    throw new Error(`Не удалось открыть окно "${title}": ${err.message}`);
+  }
+}
+
 async function main() {
   console.log('\n' + '='.repeat(60));
-  console.log(colors.green + '  🎾 PadelSense — Запуск системы' + colors.reset);
-  console.log('='.repeat(60) + '\n');
+  console.log(colors.green + '  PadelSense — запуск в отдельных окнах' + colors.reset);
+  console.log('='.repeat(60));
+  console.log('ROOT:', ROOT);
+  console.log('Node:', process.version);
+  console.log('');
 
-  const processes = [];
+  const tunnelProcesses = [];
 
   try {
-    // 1. Проверить Docker/PostgreSQL
+    if (!isWindows) {
+      log('ERROR', colors.red, 'Скрипт только для Windows. Используй: npm start');
+      process.exit(1);
+    }
+
+    // 1. PostgreSQL
     log('DB', colors.blue, 'Проверяю PostgreSQL...');
     try {
       execSync('docker compose up -d postgres', { cwd: ROOT, stdio: 'inherit' });
       log('DB', colors.green, 'PostgreSQL запущен');
     } catch (e) {
-      log('DB', colors.yellow, 'Docker недоступен, продолжаю без БД (будут ошибки при регистрации)');
+      log('DB', colors.yellow, 'Docker недоступен, продолжаю без БД');
     }
 
-    // 2. Запустить Backend
-    log('BACKEND', colors.blue, `Запускаю Backend на порту ${BACKEND_PORT}...`);
-    const backend = spawn(
-      process.platform === 'win32' ? 'python' : 'python3',
-      ['-m', 'uvicorn', 'backend.main:app', '--host', '0.0.0.0', '--port', String(BACKEND_PORT)],
-      { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] }
-    );
-    processes.push(backend);
-
-    backend.stdout.on('data', (d) => log('BACKEND', colors.blue, d.toString().trim()));
-    backend.stderr.on('data', (d) => {
-      const msg = d.toString().trim();
-      if (msg && !msg.includes('Uvicorn running')) {
-        log('BACKEND', colors.yellow, msg);
-      }
-    });
-
-    // Подождать пока backend запустится
+    // 2. Окно: Backend
+    log('BACKEND', colors.blue, 'Открываю окно Backend...');
+    runInNewWindow('PadelSense - Backend API', 'python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000');
     log('BACKEND', colors.blue, 'Жду запуска Backend...');
     await waitForPort(BACKEND_PORT, 30000);
     log('BACKEND', colors.green, `Backend готов на http://localhost:${BACKEND_PORT}`);
 
-    // 3. Запустить Mini App сервер
-    log('MINIAPP', colors.blue, `Запускаю Mini App сервер на порту ${MINIAPP_PORT}...`);
-    const miniapp = spawn(
-      'npx',
-      ['http-server', MINI_APP_DIR, '-p', String(MINIAPP_PORT), '-c-1', '--cors'],
-      { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], shell: true }
-    );
-    processes.push(miniapp);
-
-    miniapp.stdout.on('data', (d) => log('MINIAPP', colors.cyan, d.toString().trim()));
-    miniapp.stderr.on('data', (d) => log('MINIAPP', colors.yellow, d.toString().trim()));
-
+    // 3. Окно: Mini App
+    log('MINIAPP', colors.blue, 'Открываю окно Mini App...');
+    runInNewWindow('PadelSense - Mini App', `npx http-server "${MINI_APP_DIR}" -p ${MINIAPP_PORT} -c-1 --cors`);
+    log('MINIAPP', colors.blue, 'Жду запуска Mini App...');
     await waitForPort(MINIAPP_PORT, 15000);
     log('MINIAPP', colors.green, `Mini App готов на http://localhost:${MINIAPP_PORT}`);
 
-    // 4. Запустить туннель для Backend
+    // 4. Туннель Backend (в этом окне)
     log('TUNNEL', colors.blue, 'Запускаю туннель для Backend...');
     const backendTunnel = await startTunnel(BACKEND_PORT, 'API-TUNNEL');
-    processes.push(backendTunnel.process);
+    tunnelProcesses.push(backendTunnel.process);
 
-    // 5. Записать конфиг с URL API
     cleanOldConfig();
     updateIndexHtml();
     writeConfig(backendTunnel.url);
 
-    // 6. Запустить туннель для Mini App
+    // 5. Туннель Mini App (в этом окне)
     log('TUNNEL', colors.blue, 'Запускаю туннель для Mini App...');
     const miniappTunnel = await startTunnel(MINIAPP_PORT, 'APP-TUNNEL');
-    processes.push(miniappTunnel.process);
+    tunnelProcesses.push(miniappTunnel.process);
 
-    // 7. Записать MINI_APP_URL в .env для бота
+    // 6. .env
     const envPath = path.join(ROOT, '.env');
     let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
-
-    // Обновить или добавить MINI_APP_URL
     if (envContent.includes('MINI_APP_URL=')) {
       envContent = envContent.replace(/MINI_APP_URL=.*/g, `MINI_APP_URL=${miniappTunnel.url}`);
     } else {
@@ -221,21 +203,12 @@ async function main() {
     fs.writeFileSync(envPath, envContent);
     log('ENV', colors.cyan, `MINI_APP_URL=${miniappTunnel.url}`);
 
-    // 8. Запустить Telegram бота
-    log('BOT', colors.blue, 'Запускаю Telegram бота...');
-    const bot = spawn(
-      process.platform === 'win32' ? 'python' : 'python3',
-      ['-m', 'bot.main'],
-      { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, MINI_APP_URL: miniappTunnel.url } }
-    );
-    processes.push(bot);
+    // 7. Окно: Бот
+    log('BOT', colors.blue, 'Открываю окно Telegram бота...');
+    runInNewWindow('PadelSense - Telegram Bot', `set "MINI_APP_URL=${miniappTunnel.url}" && python -m bot.main`);
 
-    bot.stdout.on('data', (d) => log('BOT', colors.green, d.toString().trim()));
-    bot.stderr.on('data', (d) => log('BOT', colors.yellow, d.toString().trim()));
-
-    // Готово!
     console.log('\n' + '='.repeat(60));
-    console.log(colors.green + '  ✅ ВСЁ ЗАПУЩЕНО!' + colors.reset);
+    console.log(colors.green + '  ✅ Всё запущено в отдельных окнах!' + colors.reset);
     console.log('='.repeat(60));
     console.log(`
   📱 Mini App:  ${miniappTunnel.url}
@@ -243,31 +216,31 @@ async function main() {
   🏠 Local App: http://localhost:${MINIAPP_PORT}
   🏠 Local API: http://localhost:${BACKEND_PORT}
 
+  Окна: Backend API | Mini App | Telegram Bot | это окно (туннели)
+
   Открой Telegram → @PadelSense_Bot → /start → "Открыть приложение"
 
-  Для остановки нажми Ctrl+C
+  Закрой это окно или нажми Ctrl+C — остановятся только туннели.
+  Остальные окна закрой вручную.
 `);
     console.log('='.repeat(60) + '\n');
 
-    // Обработка завершения
     const cleanup = () => {
-      console.log('\n' + colors.yellow + 'Останавливаю все процессы...' + colors.reset);
-      processes.forEach(p => {
-        try { p.kill(); } catch (e) {}
-      });
+      console.log('\n' + colors.yellow + 'Останавливаю туннели...' + colors.reset);
+      tunnelProcesses.forEach(p => { try { p.kill(); } catch (e) {} });
       process.exit(0);
     };
-
     process.on('SIGINT', cleanup);
     process.on('SIGTERM', cleanup);
 
   } catch (error) {
     log('ERROR', colors.red, error.message);
-    processes.forEach(p => {
-      try { p.kill(); } catch (e) {}
-    });
+    tunnelProcesses.forEach(p => { try { p.kill(); } catch (e) {} });
     process.exit(1);
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(colors.red + (err && err.message ? err.message : String(err)) + colors.reset);
+  process.exit(1);
+});

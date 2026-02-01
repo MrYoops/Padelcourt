@@ -3,10 +3,12 @@
   "private": true,
   "scripts": {
     "start": "node scripts/start.js",
+    "start:windows": "node scripts/start-windows.js",
     "start:bot": "python -m bot.main",
     "start:mini": "cd mini-app && python -m http.server 3000"
   },
   "dependencies": {
+    "http-server": "^14.1.1",
     "localtunnel": "^2.0.2"
   }
 }
