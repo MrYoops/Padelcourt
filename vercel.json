@@ -1,16 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "mini-app/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/mini-app/$1"
-    }
+  "buildCommand": null,
+  "outputDirectory": "mini-app",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/mini-app/$1" }
   ],
   "headers": [
     {
