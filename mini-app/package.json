@@ -1,0 +1,12 @@
+{
+  "name": "padelsense-mini-app",
+  "version": "1.0.0",
+  "description": "PadelSense Mini App - Telegram Web App для падел-кортов",
+  "scripts": {
+    "start": "npx serve -l 3000",
+    "build": "echo 'No build needed for static files'"
+  },
+  "keywords": ["telegram", "webapp", "padel", "sports"],
+  "author": "MrYoops",
+  "license": "MIT"
+}
