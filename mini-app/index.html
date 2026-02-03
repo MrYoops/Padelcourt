@@ -11,6 +11,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="performance.js"></script>
+  <script>
+    // API URL для Mini App (можно переопределить через переменные окружения при сборке)
+    window.API_BASE = window.API_BASE || 'http://localhost:8000';
+    console.log('[PadelSense] API_BASE =', window.API_BASE);
+  </script>
 </head>
 <body>
   <div id="app">

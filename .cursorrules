@@ -1,0 +1,286 @@
+# PadelSense Court System - Cursor AI Rules
+# Версия: 1.0 | Январь 2025
+
+## 🎯 КОНТЕКСТ ПРОЕКТА
+
+Ты работаешь над **PadelSense** — системой умного корта для падел-клубов.
+
+**Что система делает:**
+- Записывает видео всех матчей на корте
+- Ведёт счёт (ручной ввод → потом автоматический AI)
+- Идентифицирует игроков через QR-код в Telegram
+- Отправляет игрокам видео и статистику
+
+**Компоненты проекта:**
+1. `telegram-bot/` — Python бот на aiogram 3.x (регистрация, QR-коды, уведомления)
+2. `mini-app/` — Telegram Mini App на React + TypeScript (регистрация пользователя)
+3. `backend/` — FastAPI сервер (API, база данных, обработка видео)
+4. `tablet-app/` — React Native + Expo приложение для планшета на корте (РАЗРАБАТЫВАЕТСЯ В WINDSURF!)
+5. `ml/` — Computer Vision модели (позже)
+
+---
+
+## ⚠️ КРИТИЧЕСКИ ВАЖНО
+
+### Синхронизация с Windsurf
+Планшетное приложение (`tablet-app/`) разрабатывается в **Windsurf**!
+- НЕ редактируй файлы в `tablet-app/` без явной просьбы
+- Общие типы лежат в `shared/types/` — изменения требуют синхронизации
+- При изменении API контрактов — ОБЯЗАТЕЛЬНО укажи что нужно обновить в Windsurf
+
+### QR-код формат
+```
+user:{telegram_id}
+```
+Пример: `user:123456789`
+
+### Позиции на корте
+```
+1 = Левый ближний
+2 = Правый ближний
+3 = Левый дальний
+4 = Правый дальний
+```
+
+---
+
+## 📁 СТРУКТУРА ПРОЕКТА
+
+```
+padelsense-court/
+├── .cursorrules              # ← Этот файл
+├── .windsurfrules            # Правила для Windsurf (не трогать)
+├── shared/                   # Общие типы и контракты
+│   ├── types/
+│   │   ├── user.ts           # UserProfile, RegistrationData
+│   │   ├── match.ts          # Match, MatchPlayer, Score
+│   │   ├── court.ts          # Court, CourtPosition
+│   │   └── api.ts            # API контракты
+│   └── constants/
+│       ├── qr-format.ts      # QR код спецификации
+│       └── positions.ts      # Позиции на корте
+│
+├── telegram-bot/             # Python бот
+│   ├── main.py
+│   ├── handlers/
+│   ├── keyboards/
+│   ├── services/
+│   └── requirements.txt
+│
+├── mini-app/                 # Telegram Mini App
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.ts
+│
+├── backend/                  # FastAPI
+│   ├── api/
+│   ├── models/
+│   ├── services/
+│   └── requirements.txt
+│
+└── tablet-app/               # ⚠️ WINDSURF ONLY
+    └── (не редактировать в Cursor)
+```
+
+---
+
+## 🐍 PYTHON ПРАВИЛА
+
+### Общие
+- Python 3.11+
+- Type hints ОБЯЗАТЕЛЬНЫ для всех функций
+- Docstrings на русском для бизнес-логики
+- Black formatter (line-length=88)
+- isort для импортов
+
+### Aiogram 3.x
+```python
+# Правильный импорт
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
+# Структура хэндлера
+router = Router(name="название")
+
+@router.message(Command("start"))
+async def cmd_start(message: Message, state: FSMContext) -> None:
+    """Обработка команды /start."""
+    pass
+```
+
+### FastAPI
+```python
+# Роутер
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
+
+router = APIRouter(prefix="/api/v1", tags=["название"])
+
+# Модели Pydantic
+class UserCreate(BaseModel):
+    telegram_id: int
+    name: str
+    
+    class Config:
+        from_attributes = True
+```
+
+### Обработка ошибок
+```python
+# Всегда конкретные исключения
+try:
+    result = await some_operation()
+except SpecificError as e:
+    logger.error(f"Ошибка операции: {e}")
+    raise HTTPException(status_code=400, detail=str(e))
+```
+
+---
+
+## 📘 TYPESCRIPT ПРАВИЛА
+
+### Общие
+- Strict mode ОБЯЗАТЕЛЕН
+- Никаких `any` — используй `unknown` + type guards
+- Интерфейсы для объектов, типы для unions/примитивов
+
+### Shared Types
+```typescript
+// shared/types/user.ts
+export interface UserProfile {
+  telegramId: number;
+  name: string;
+  avatarUrl?: string;
+  qrCode: string;
+  createdAt: Date;
+}
+
+// shared/types/match.ts
+export interface MatchPlayer {
+  userId: number;
+  position: CourtPosition;
+  team: 'A' | 'B';
+}
+
+export type CourtPosition = 1 | 2 | 3 | 4;
+```
+
+### API Контракты
+```typescript
+// shared/types/api.ts
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface CreateUserRequest {
+  telegramId: number;
+  name: string;
+  phone?: string;
+}
+
+export interface CreateUserResponse {
+  user: UserProfile;
+  qrCode: string;
+}
+```
+
+---
+
+## 🔄 СИНХРОНИЗАЦИЯ ИЗМЕНЕНИЙ
+
+При изменении shared типов или API:
+
+1. **Обнови файл в `shared/`**
+2. **Создай CHANGELOG запись:**
+```markdown
+## [SYNC REQUIRED] 2025-01-XX
+
+### Изменено
+- `shared/types/user.ts`: добавлено поле `avatarUrl`
+
+### Действия для Windsurf
+- Обновить `tablet-app/src/types/user.ts`
+- Проверить `PlayerCard` компонент
+```
+
+3. **Скажи мне** что нужно синхронизировать
+
+---
+
+## 🛠️ КОМАНДЫ
+
+### Telegram Bot
+```bash
+cd telegram-bot
+python -m venv venv
+source venv/bin/activate  # или venv\Scripts\activate на Windows
+pip install -r requirements.txt
+python main.py
+```
+
+### Mini App
+```bash
+cd mini-app
+npm install
+npm run dev
+```
+
+### Backend
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
+
+---
+
+## 📝 СТИЛЬ ОТВЕТОВ
+
+1. **Сначала план** — опиши что будешь делать
+2. **Потом код** — с комментариями
+3. **В конце чеклист** — что проверить, что синхронизировать
+
+### Пример ответа:
+```
+## План
+1. Создам модель User в backend
+2. Добавлю эндпоинт POST /users
+3. Обновлю shared типы
+
+## Код
+[код с комментариями]
+
+## Чеклист
+- [ ] Проверить миграцию БД
+- [ ] Обновить Windsurf: добавить тип UserProfile
+- [ ] Протестировать через Thunder Client
+```
+
+---
+
+## 🚫 НЕ ДЕЛАЙ
+
+- Не используй `print()` — только `logging`
+- Не хардкодь credentials — используй .env
+- Не редактируй `tablet-app/` без явной просьбы
+- Не меняй shared типы без документирования
+- Не используй `any` в TypeScript
+- Не пиши SQL напрямую — используй ORM (SQLAlchemy)
+
+---
+
+## ✅ ВСЕГДА ДЕЛАЙ
+
+- Добавляй type hints в Python
+- Используй async/await для IO операций
+- Логируй важные события
+- Обрабатывай ошибки явно
+- Документируй изменения в shared/
+- Предупреждай о необходимости синхронизации с Windsurf

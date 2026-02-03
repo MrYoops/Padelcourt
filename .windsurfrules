@@ -1,0 +1,406 @@
+# PadelSense Tablet App - Windsurf AI Rules
+# Версия: 1.0 | Январь 2025
+
+## 🎯 КОНТЕКСТ
+
+Ты работаешь над **планшетным приложением** для PadelSense — системы умного падел-корта.
+
+**Твоя область:**
+- React Native + Expo приложение
+- Работает на планшете (10-11") на корте
+- Сканирует QR-коды игроков
+- Показывает счёт матча
+- Записывает видео с камер (RTSP)
+
+**Другие компоненты (разрабатываются в Cursor):**
+- Telegram Bot (Python/aiogram)
+- Mini App (React/TypeScript)
+- Backend API (FastAPI)
+
+---
+
+## ⚠️ КРИТИЧЕСКИ ВАЖНО
+
+### Синхронизация с Cursor
+- Общие типы лежат в `../shared/types/`
+- При необходимости изменить API — СООБЩИ, что нужно обновить в Cursor
+- Не меняй файлы вне `tablet-app/` без явной просьбы
+
+### QR-код формат
+```
+user:{telegram_id}
+```
+Пример: `user:123456789`
+
+**Парсинг:**
+```typescript
+const parseQRCode = (data: string): number | null => {
+  const match = data.match(/^user:(\d+)$/);
+  return match ? parseInt(match[1], 10) : null;
+};
+```
+
+### Позиции на корте
+```typescript
+type CourtPosition = 1 | 2 | 3 | 4;
+// 1 = Левый ближний (Team A)
+// 2 = Правый ближний (Team A)
+// 3 = Левый дальний (Team B)
+// 4 = Правый дальний (Team B)
+```
+
+---
+
+## 📁 СТРУКТУРА ПРИЛОЖЕНИЯ
+
+```
+tablet-app/
+├── app/                      # Expo Router экраны
+│   ├── index.tsx             # Главный экран
+│   ├── scan.tsx              # Сканирование QR
+│   ├── match-setup.tsx       # Настройка матча
+│   ├── match.tsx             # Экран игры (счёт)
+│   └── match-end.tsx         # Конец матча
+│
+├── src/
+│   ├── components/
+│   │   ├── PlayerCard.tsx
+│   │   ├── ScoreBoard.tsx
+│   │   ├── QRScanner.tsx
+│   │   └── CourtPositionPicker.tsx
+│   │
+│   ├── features/
+│   │   ├── camera/           # RTSP подключение
+│   │   ├── recording/        # FFmpeg запись
+│   │   ├── scoring/          # Логика счёта падел
+│   │   └── qr/               # Сканирование
+│   │
+│   ├── hooks/
+│   │   ├── useMatch.ts
+│   │   ├── useCamera.ts
+│   │   └── useQRScanner.ts
+│   │
+│   ├── services/
+│   │   ├── api.ts            # Запросы к backend
+│   │   └── storage.ts        # AsyncStorage
+│   │
+│   ├── types/                # Локальные типы
+│   │   └── index.ts
+│   │
+│   └── utils/
+│       ├── qr-parser.ts
+│       └── score-calculator.ts
+│
+├── app.json
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## 📘 TYPESCRIPT ПРАВИЛА
+
+### Строгая типизация
+```typescript
+// ❌ НИКОГДА
+const data: any = response.data;
+function handle(params) { }
+
+// ✅ ПРАВИЛЬНО
+const data: UserProfile = response.data;
+function handle(params: ScanResult): void { }
+```
+
+### Типы для приложения
+```typescript
+// src/types/index.ts
+
+export type CourtPosition = 1 | 2 | 3 | 4;
+export type Team = 'A' | 'B';
+
+export interface Player {
+  id: number;
+  telegramId: number;
+  name: string;
+  avatarUrl?: string;
+  position: CourtPosition;
+  team: Team;
+}
+
+export interface MatchState {
+  players: Player[];
+  score: Score;
+  sets: SetScore[];
+  isRecording: boolean;
+  startedAt: Date | null;
+}
+
+export interface Score {
+  teamA: number;  // 0, 15, 30, 40, AD
+  teamB: number;
+}
+
+export interface SetScore {
+  teamA: number;  // Геймы
+  teamB: number;
+}
+```
+
+---
+
+## ⚛️ REACT NATIVE ПРАВИЛА
+
+### Компоненты
+```typescript
+// Функциональные компоненты с типами
+interface PlayerCardProps {
+  player: Player;
+  onPress?: () => void;
+  isActive?: boolean;
+}
+
+export const PlayerCard: React.FC<PlayerCardProps> = ({
+  player,
+  onPress,
+  isActive = false,
+}) => {
+  return (
+    <Pressable onPress={onPress} style={[styles.card, isActive && styles.active]}>
+      <Text style={styles.name}>{player.name}</Text>
+      <Text style={styles.position}>Позиция {player.position}</Text>
+    </Pressable>
+  );
+};
+```
+
+### Хуки
+```typescript
+// hooks/useMatch.ts
+export const useMatch = () => {
+  const [state, setState] = useState<MatchState>(initialState);
+  
+  const addPlayer = useCallback((player: Player) => {
+    setState(prev => ({
+      ...prev,
+      players: [...prev.players, player],
+    }));
+  }, []);
+  
+  const addPoint = useCallback((team: Team) => {
+    setState(prev => ({
+      ...prev,
+      score: calculateNewScore(prev.score, team),
+    }));
+  }, []);
+  
+  return { state, addPlayer, addPoint };
+};
+```
+
+### Стили
+```typescript
+// Используй StyleSheet, не inline стили
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  // Оптимизировано для планшета 10-11"
+  card: {
+    padding: 24,
+    borderRadius: 12,
+    minHeight: 120,
+  },
+  text: {
+    fontSize: 18, // Крупнее для планшета
+  },
+});
+```
+
+---
+
+## 📱 EXPO ПРАВИЛА
+
+### Навигация (Expo Router)
+```typescript
+// app/scan.tsx
+import { useRouter } from 'expo-router';
+
+export default function ScanScreen() {
+  const router = useRouter();
+  
+  const handleScan = (data: string) => {
+    const telegramId = parseQRCode(data);
+    if (telegramId) {
+      router.push({
+        pathname: '/match-setup',
+        params: { playerId: telegramId },
+      });
+    }
+  };
+  
+  return <QRScanner onScan={handleScan} />;
+}
+```
+
+### Camera (QR сканирование)
+```typescript
+import { CameraView, useCameraPermissions } from 'expo-camera';
+
+export const QRScanner: React.FC<QRScannerProps> = ({ onScan }) => {
+  const [permission, requestPermission] = useCameraPermissions();
+  
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    onScan(data);
+  };
+  
+  if (!permission?.granted) {
+    return <PermissionRequest onRequest={requestPermission} />;
+  }
+  
+  return (
+    <CameraView
+      style={styles.camera}
+      barcodeScannerSettings={{
+        barcodeTypes: ['qr'],
+      }}
+      onBarcodeScanned={handleBarCodeScanned}
+    />
+  );
+};
+```
+
+---
+
+## 🎾 ЛОГИКА СЧЁТА ПАДЕЛ
+
+```typescript
+// utils/score-calculator.ts
+
+type PointValue = 0 | 15 | 30 | 40 | 'AD';
+
+export const calculateNewScore = (
+  currentScore: Score,
+  scoringTeam: Team
+): Score => {
+  const teamA = currentScore.teamA;
+  const teamB = currentScore.teamB;
+  
+  // Логика падел-счёта
+  // 0 -> 15 -> 30 -> 40 -> Game
+  // При 40-40 -> AD -> Game (или обратно в Deuce)
+  
+  // ... реализация
+};
+
+export const isGameWon = (score: Score): Team | null => {
+  // Проверка выигрыша гейма
+};
+
+export const isSetWon = (games: SetScore): Team | null => {
+  // 6 геймов с разницей 2, или тайбрейк
+};
+```
+
+---
+
+## 🔄 API ИНТЕГРАЦИЯ
+
+```typescript
+// services/api.ts
+import { API_URL } from '@env';
+
+class ApiService {
+  private baseUrl = API_URL || 'http://localhost:8000';
+  
+  async getUser(telegramId: number): Promise<UserProfile> {
+    const response = await fetch(`${this.baseUrl}/api/v1/users/${telegramId}`);
+    if (!response.ok) {
+      throw new Error('User not found');
+    }
+    return response.json();
+  }
+  
+  async createMatch(data: CreateMatchRequest): Promise<Match> {
+    const response = await fetch(`${this.baseUrl}/api/v1/matches`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    return response.json();
+  }
+  
+  async updateMatchScore(matchId: string, score: MatchScore): Promise<void> {
+    await fetch(`${this.baseUrl}/api/v1/matches/${matchId}/score`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(score),
+    });
+  }
+}
+
+export const api = new ApiService();
+```
+
+---
+
+## 🛠️ КОМАНДЫ
+
+```bash
+# Установка
+cd tablet-app
+npm install
+
+# Разработка
+npx expo start
+
+# Сборка для Android
+npx expo build:android
+
+# Запуск на устройстве
+npx expo start --lan
+```
+
+---
+
+## 📝 СТИЛЬ ОТВЕТОВ
+
+1. **Сначала план** — что будем делать
+2. **Потом код** — с типами и комментариями
+3. **Чеклист** — что проверить
+
+### Пример:
+```
+## План
+1. Создам компонент ScoreBoard
+2. Добавлю логику счёта падел
+3. Интегрирую с useMatch хуком
+
+## Код
+[код]
+
+## Чеклист
+- [ ] Проверить на планшете
+- [ ] Протестировать тайбрейк
+- [ ] Если нужен новый API эндпоинт — сообщить для Cursor
+```
+
+---
+
+## 🚫 НЕ ДЕЛАЙ
+
+- Не используй `any`
+- Не используй inline стили
+- Не редактируй файлы вне `tablet-app/`
+- Не хардкодь URL API
+- Не игнорируй ошибки TypeScript
+
+---
+
+## ✅ ВСЕГДА ДЕЛАЙ
+
+- Типизируй все props и state
+- Используй useCallback для функций в зависимостях
+- Обрабатывай состояния loading/error
+- Оптимизируй для планшета (крупные кнопки, читаемый текст)
+- Предупреждай если нужны изменения в API

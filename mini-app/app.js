@@ -8,11 +8,11 @@ function debug(msg) {
 }
 
 (function () {
-  const API_BASE = window.API_BASE;
+  // API_BASE для Vercel + туннель к Backend
+  const API_BASE = 'https://padelsense-api.loca.lt';
 
-  if (!API_BASE) {
-    console.error('[PadelSense] API_BASE не задан!');
-  }
+  console.log('[PadelSense] API_BASE =', API_BASE);
+  console.log('[PadelSense] Запущен на Vercel с API туннелем');
 
   // Telegram Web App
   const tg = window.Telegram && window.Telegram.WebApp;
@@ -205,14 +205,24 @@ function debug(msg) {
       };
       
       console.log('📤 Отправка данных:', userData);
+      console.log('🔗 API URL:', API_BASE + '/api/users');
+      
+      // Проверяем доступность API перед запросом
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 10000); // 10 сек timeout
       
       var res = await fetch(API_BASE + '/api/users', {
+        signal: controller.signal,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(userData)
       });
       
-      console.log('📥 Статус ответа:', res.status);
+      clearTimeout(timeoutId);
+      console.log('📥 Статус ответа:', res.status, res.statusText);
       
       if (res.ok) {
         var result = await res.json();
@@ -248,7 +258,22 @@ function debug(msg) {
       }
     } catch (e) {
       console.error('❌ Ошибка сети:', e);
-      alert('❌ Нет связи с сервером. Проверьте интернет-соединение.');
+      
+      // Детальная диагностика ошибки
+      var errorMsg = '❌ Нет связи с сервером.';
+      
+      if (e.name === 'AbortError') {
+        errorMsg = '❌ Таймаут запроса. Сервер не отвечает.';
+      } else if (e.message && e.message.includes('Failed to fetch')) {
+        errorMsg = '❌ Не удалось подключиться к серверу.\n\nПроверьте:\n';
+        errorMsg += '1. Backend запущен на ' + API_BASE + '\n';
+        errorMsg += '2. CORS настроен правильно\n';
+        errorMsg += '3. Нет блокировки HTTPS/HTTP';
+      } else if (e.message) {
+        errorMsg = '❌ Ошибка: ' + e.message;
+      }
+      
+      alert(errorMsg);
     } finally {
       submitBtn.textContent = originalText;
       submitBtn.disabled = false;
@@ -304,7 +329,14 @@ function debug(msg) {
     
     // Проверить на сервере
     try {
-      var res = await fetch(API_BASE + '/api/users/by-telegram/' + telegramId);
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+      
+      var res = await fetch(API_BASE + '/api/users/by-telegram/' + telegramId, {
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       if (res.status === 404) {
         console.log('User not found, showing register');
         window.PadelSense.isAuthenticated = false;
@@ -323,7 +355,8 @@ function debug(msg) {
         showView('register');
       }
     } catch (e) {
-      console.error('Ошибка проверки:', e);
+      console.error('❌ Ошибка проверки пользователя:', e);
+      // При ошибке сети всё равно показываем регистрацию
       window.PadelSense.isAuthenticated = false;
       window.PadelSense.currentUser = null;
       showView('register');
