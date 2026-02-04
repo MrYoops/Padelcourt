@@ -17,7 +17,7 @@ from backend.services.user_service import (
     get_user_by_telegram_id_pg,
 )
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 @router.get("/by-telegram/{telegram_id}", response_model=UserResponse)
@@ -53,7 +53,7 @@ async def post_user(
     logger.info(f"📝 Регистрация пользователя: telegram_id={body.telegram_id}, name={body.name}")
     try:
         user = await create_user_pg(conn, body)
-        logger.info(f"✅ Пользователь создан: {user.id}")
+        logger.info(f"✅ Пользователь создан: {user['id']}")
         return user
     except Exception as e:
         logger.error(f"❌ Ошибка регистрации: {e}")

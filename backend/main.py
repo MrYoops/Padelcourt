@@ -88,6 +88,13 @@ app.add_middleware(
 # Обработчики исключений
 app.add_exception_handler(Exception, global_exception_handler)
 
+# Подключаем роутеры
+app.include_router(users.router)
+app.include_router(matches.router)
+app.include_router(videos.router)
+app.include_router(analytics.router)
+app.include_router(subscriptions.router)
+
 # Health check endpoint
 @app.get("/health", tags=["monitoring"])
 async def health():

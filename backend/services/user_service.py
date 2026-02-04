@@ -23,11 +23,12 @@ async def get_user_by_telegram_id_pg(conn: asyncpg.Connection, telegram_id: int)
 
 async def create_user_pg(conn: asyncpg.Connection, data: UserCreate) -> dict:
     import uuid
+    from datetime import datetime
     uid = uuid.uuid4()
     await conn.execute(
         """
-        INSERT INTO users (id, telegram_id, name, phone, photo_url, is_pro)
-        VALUES ($1, $2, $3, $4, $5, false)
+        INSERT INTO users (id, telegram_id, name, phone, photo_url, is_pro, created_at)
+        VALUES ($1, $2, $3, $4, $5, false, NOW())
         """,
         uid,
         data.telegram_id,
@@ -42,6 +43,7 @@ async def create_user_pg(conn: asyncpg.Connection, data: UserCreate) -> dict:
         "phone": data.phone,
         "photo_url": data.photo_url,
         "is_pro": False,
+        "created_at": datetime.now().isoformat(),
     }
 
 

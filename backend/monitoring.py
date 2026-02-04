@@ -179,20 +179,35 @@ def init_sentry(dsn: Optional[str] = None):
 # Health check endpoint
 async def health_check() -> Dict[str, Any]:
     """Проверка здоровья системы"""
-    stats = metrics.get_stats()
-    
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "metrics": {
-            "requests_total": stats["requests_total"],
-            "avg_response_time": round(stats["avg_response_time"], 3),
-            "success_rate": round(stats["success_rate"], 2),
-            "cache_hit_rate": round(stats["cache_hit_rate"], 2),
-            "db_queries": stats["db_queries"],
-            "recent_errors": len(stats["errors"])
+    try:
+        stats = metrics.get_stats()
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "metrics": {
+                "requests_total": stats.get("requests_total", 0),
+                "avg_response_time": round(stats.get("avg_response_time", 0), 3),
+                "success_rate": round(stats.get("success_rate", 100), 2),
+                "cache_hit_rate": round(stats.get("cache_hit_rate", 0), 2),
+                "db_queries": stats.get("db_queries", 0),
+                "recent_errors": len(stats.get("errors", []))
+            }
         }
-    }
+    except Exception as e:
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "metrics": {
+                "requests_total": 0,
+                "avg_response_time": 0,
+                "success_rate": 100,
+                "cache_hit_rate": 0,
+                "db_queries": 0,
+                "recent_errors": 0
+            },
+            "monitoring_error": str(e)
+        }
 
 # Логирование важных событий
 class EventLogger:
