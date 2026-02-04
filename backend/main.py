@@ -6,7 +6,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.cache import cache
 from backend.db.session import init_db
 from backend.monitoring import (
     monitoring_middleware, 
@@ -32,15 +31,12 @@ async def lifespan(app: FastAPI):
         # Инициализация базы данных
         await init_db()
         
-        # Инициализация Redis кэша
-        await cache.connect()
-        
         EventLogger.system_event("Backend started", {
             "version": "1.0",
-            "features": ["redis_cache", "monitoring", "sentry"]
+            "features": ["monitoring", "sentry"]
         })
         
-        logger.info("✅ Backend запущен: БД + Redis кэш + Мониторинг")
+        logger.info("✅ Backend запущен: БД + Мониторинг")
         
     except OSError as e:
         logger.warning(
@@ -54,20 +50,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # Закрытие соединений при остановке
-        await cache.disconnect()
         EventLogger.system_event("Backend stopped")
         logger.info("🔚 Backend остановлен")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Диагностика при старте"""
-    import os
-    logger.info("🚀 Backend стартует...")
-    logger.info(f"📍 CORS origins: {ALLOWED_ORIGINS[:3]}...")  # Первые 3 для краткости
-    logger.info(f"🔧 API docs: http://localhost:8000/docs")
-    logger.info(f"💚 Health check: http://localhost:8000/health")
 
 
 app = FastAPI(
@@ -151,3 +135,8 @@ async def api_health():
         "version": "1.0",
         "cors": "enabled"
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

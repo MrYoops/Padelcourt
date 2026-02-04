@@ -33,11 +33,10 @@
 - 📋 **Правила разработки** (RulesPADel)
 
 #### **🔧 Fixed:**
-- 🐛 **Регистрация** в Mini App
-- 🔗 **API_BASE** для Vercel
-- 🌐 **CORS** для локального туннеля
-- 📡 **HTTP сервер** в боте
-- 📦 **Зависимости** Python
+- 🐛 **Backend запуск** - добавлен uvicorn.run в main.py
+- 🔗 **Vercel URL** - обновлен на https://padelcourt-ruddy.vercel.app
+- 🔧 **PostgreSQL** - восстановлен после сбоя
+- 📡 **API Tunnel** - настроен для Vercel
 
 #### **⚡ Performance:**
 - 🚀 **Убран Redis** (конфликт зависимостей)

@@ -21,7 +21,6 @@ if not os.path.exists("bot"):
 
 from bot.config import get_mini_app_url, get_token
 from bot.handlers import start_router
-from bot.http_server import run_http_server
 
 NOTIFY_PORT = int(os.getenv("NOTIFY_PORT", "8081"))
 
@@ -41,10 +40,6 @@ async def main() -> None:
     dp = Dispatcher()
     dp.include_router(start_router)
 
-    logger.info("🚀 Запуск HTTP сервера на порту %s...", NOTIFY_PORT)
-    await run_http_server(bot, port=NOTIFY_PORT)
-
-    logger.info("⚙️ Настройка кнопки меню...")
     try:
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
